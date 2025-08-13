@@ -4,7 +4,10 @@ import cors from "cors";
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+
+// ✅ Tăng giới hạn request body lên 10MB (hoặc lớn hơn nếu cần)
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
 // Lấy API key từ Environment Variables
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
