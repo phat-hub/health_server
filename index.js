@@ -6,20 +6,22 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Lấy API key từ Environment Variable (Render, Railway, Vercel)
-const API_KEY = process.env.GEMINI_API_KEY;
+// Lấy API key từ Environment Variables
+const GEMINI_KEY = process.env.GEMINI_API_KEY;
+const VISION_KEY = process.env.VISION_API_KEY;
+const CALORIE_KEY = process.env.CALORIE_API_KEY;
 
-if (!API_KEY) {
-  console.error("❌ Lỗi: Chưa cấu hình GEMINI_API_KEY trong Environment Variables");
+if (!GEMINI_KEY || !VISION_KEY || !CALORIE_KEY) {
+  console.error("❌ Lỗi: Chưa cấu hình đủ API key");
   process.exit(1);
 }
 
+// ================== Gemini Chat ==================
 app.post("/chat", async (req, res) => {
   try {
     const { message } = req.body;
-
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -30,13 +32,51 @@ app.post("/chat", async (req, res) => {
         }),
       }
     );
-
-    const data = await response.json();
-    res.json(data);
-
+    res.json(await response.json());
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Lỗi server" });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ================== Google Vision Detect Food ==================
+app.post("/detect-food", async (req, res) => {
+  try {
+    const { imageBase64 } = req.body;
+    const response = await fetch(
+      `https://vision.googleapis.com/v1/images:annotate?key=${VISION_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requests: [
+            {
+              image: { content: imageBase64 },
+              features: [{ type: "LABEL_DETECTION", maxResults: 5 }]
+            }
+          ]
+        }),
+      }
+    );
+    res.json(await response.json());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ================== CalorieNinjas ==================
+app.get("/calories", async (req, res) => {
+  try {
+    const { query } = req.query;
+    const response = await fetch(
+      `https://api.calorieninjas.com/v1/nutrition?query=${encodeURIComponent(query)}`,
+      {
+        method: "GET",
+        headers: { "X-Api-Key": CALORIE_KEY }
+      }
+    );
+    res.json(await response.json());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
